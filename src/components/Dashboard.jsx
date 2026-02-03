@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import {
   Users, GitCommit, FolderGit2, TrendingUp, AlertCircle, Loader2,
-  LayoutDashboard, Calendar, Trophy, Scale, FileText
+  LayoutDashboard, Calendar, Trophy, Scale, FileText, Grid3X3,
+  Clock, Package, Bell, Sparkles
 } from 'lucide-react';
 import WorkspaceSummary from './WorkspaceSummary';
 import DeveloperCard from './DeveloperCard';
@@ -11,16 +12,26 @@ import DailyBreakdown from './DailyBreakdown';
 import ProductivityPanel from './ProductivityPanel';
 import CompareView from './CompareView';
 import WeeklySummary from './WeeklySummary';
+import HeatmapCalendar from './HeatmapCalendar';
+import WorkPatternInsights from './WorkPatternInsights';
+import FeatureShippingTracker from './FeatureShippingTracker';
+import AlertsPanel from './AlertsPanel';
+import AISettingsPanel from './AISettingsPanel';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'shipping', label: 'Who Shipped What', icon: Package },
   { id: 'daily', label: 'Daily View', icon: Calendar },
   { id: 'productivity', label: 'Productivity', icon: Trophy },
+  { id: 'patterns', label: 'Work Patterns', icon: Clock },
+  { id: 'heatmap', label: 'Heatmap', icon: Grid3X3 },
+  { id: 'alerts', label: 'Alerts', icon: Bell },
   { id: 'compare', label: 'Compare', icon: Scale },
-  { id: 'weekly', label: 'Weekly Report', icon: FileText }
+  { id: 'weekly', label: 'Weekly', icon: FileText },
+  { id: 'ai', label: 'AI Settings', icon: Sparkles }
 ];
 
-function Dashboard({ data, loading, error, progress, onSelectDeveloper, dailyData, weeklyData, timeframeDays }) {
+function Dashboard({ data, loading, error, progress, onSelectDeveloper, dailyData, weeklyData, timeframeDays, aiConfig, onAIConfigChange }) {
   const [activeTab, setActiveTab] = useState('overview');
 
   if (error) {
@@ -95,22 +106,24 @@ function Dashboard({ data, loading, error, progress, onSelectDeveloper, dailyDat
         />
       </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-1 flex gap-1">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'bg-dashboard-accent text-white'
-                : 'text-dashboard-muted hover:text-white hover:bg-dashboard-bg'
-            }`}
-          >
-            <tab.icon className="w-4 h-4" />
-            <span className="hidden md:inline">{tab.label}</span>
-          </button>
-        ))}
+      {/* Tab Navigation - Scrollable */}
+      <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-1 overflow-x-auto">
+        <div className="flex gap-1 min-w-max">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-dashboard-accent text-white'
+                  : 'text-dashboard-muted hover:text-white hover:bg-dashboard-bg'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -154,6 +167,15 @@ function Dashboard({ data, loading, error, progress, onSelectDeveloper, dailyDat
         </div>
       )}
 
+      {activeTab === 'shipping' && (
+        <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
+          <FeatureShippingTracker
+            commits={commits}
+            developers={developers}
+          />
+        </div>
+      )}
+
       {activeTab === 'daily' && (
         <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -174,6 +196,35 @@ function Dashboard({ data, loading, error, progress, onSelectDeveloper, dailyDat
         />
       )}
 
+      {activeTab === 'patterns' && (
+        <WorkPatternInsights
+          developers={developers}
+          commits={commits}
+        />
+      )}
+
+      {activeTab === 'heatmap' && (
+        <div className="space-y-6">
+          <HeatmapCalendar commits={commits} />
+
+          {/* Individual developer heatmaps */}
+          <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Individual Developer Heatmaps</h3>
+            <div className="space-y-6">
+              {developers.slice(0, 3).map(dev => (
+                <HeatmapCalendar key={dev.email} commits={commits} developer={dev} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'alerts' && (
+        <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
+          <AlertsPanel developers={developers} commits={commits} />
+        </div>
+      )}
+
       {activeTab === 'compare' && (
         <CompareView developers={developers} />
       )}
@@ -188,6 +239,37 @@ function Dashboard({ data, loading, error, progress, onSelectDeveloper, dailyDat
             Week-by-week breakdown of activity with trends and top contributors.
           </p>
           <WeeklySummary weeklyData={weeklyData} />
+        </div>
+      )}
+
+      {activeTab === 'ai' && (
+        <div className="max-w-2xl mx-auto">
+          <AISettingsPanel
+            currentConfig={aiConfig}
+            onConfigChange={onAIConfigChange}
+          />
+
+          <div className="mt-6 bg-dashboard-card border border-dashboard-border rounded-xl p-6">
+            <h4 className="font-semibold text-white mb-3">How AI Summaries Work</h4>
+            <ul className="space-y-2 text-sm text-dashboard-muted">
+              <li className="flex items-start gap-2">
+                <span className="text-dashboard-accent">1.</span>
+                Configure your OpenAI or Anthropic API key above
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-dashboard-accent">2.</span>
+                AI analyzes each developer's commits and generates human-readable summaries
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-dashboard-accent">3.</span>
+                Summaries appear in "Who Shipped What" and developer detail pages
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-dashboard-accent">4.</span>
+                Results are cached - you only pay once per analysis
+              </li>
+            </ul>
+          </div>
         </div>
       )}
     </div>
