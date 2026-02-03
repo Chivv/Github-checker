@@ -1,10 +1,28 @@
-import { Users, GitCommit, FolderGit2, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Users, GitCommit, FolderGit2, TrendingUp, AlertCircle, Loader2,
+  LayoutDashboard, Calendar, Trophy, Scale, FileText
+} from 'lucide-react';
 import WorkspaceSummary from './WorkspaceSummary';
 import DeveloperCard from './DeveloperCard';
 import ActivityChart from './ActivityChart';
 import RepositoryList from './RepositoryList';
+import DailyBreakdown from './DailyBreakdown';
+import ProductivityPanel from './ProductivityPanel';
+import CompareView from './CompareView';
+import WeeklySummary from './WeeklySummary';
 
-function Dashboard({ data, loading, error, progress, onSelectDeveloper }) {
+const TABS = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'daily', label: 'Daily View', icon: Calendar },
+  { id: 'productivity', label: 'Productivity', icon: Trophy },
+  { id: 'compare', label: 'Compare', icon: Scale },
+  { id: 'weekly', label: 'Weekly Report', icon: FileText }
+];
+
+function Dashboard({ data, loading, error, progress, onSelectDeveloper, dailyData, weeklyData, timeframeDays }) {
+  const [activeTab, setActiveTab] = useState('overview');
+
   if (error) {
     return (
       <div className="max-w-md mx-auto mt-20 text-center">
@@ -49,7 +67,7 @@ function Dashboard({ data, loading, error, progress, onSelectDeveloper }) {
 
   return (
     <div className="space-y-6">
-      {/* Quick Stats */}
+      {/* Quick Stats - Always visible */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard
           icon={<GitCommit className="w-5 h-5" />}
@@ -77,41 +95,101 @@ function Dashboard({ data, loading, error, progress, onSelectDeveloper }) {
         />
       </div>
 
-      {/* Workspace Summary */}
-      {workspaceSummary && (
-        <WorkspaceSummary summary={workspaceSummary} />
+      {/* Tab Navigation */}
+      <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-1 flex gap-1">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === tab.id
+                ? 'bg-dashboard-accent text-white'
+                : 'text-dashboard-muted hover:text-white hover:bg-dashboard-bg'
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            <span className="hidden md:inline">{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Workspace Summary */}
+          {workspaceSummary && (
+            <WorkspaceSummary summary={workspaceSummary} />
+          )}
+
+          {/* Activity Chart */}
+          <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Activity Timeline</h3>
+            <ActivityChart data={byDate} />
+          </div>
+
+          {/* Developers Grid */}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Developer Activity ({developers.length} contributors)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {developers.map((dev, idx) => (
+                <DeveloperCard
+                  key={dev.email || idx}
+                  developer={dev}
+                  rank={idx + 1}
+                  onClick={() => onSelectDeveloper(dev)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Repositories */}
+          <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Repository Activity
+            </h3>
+            <RepositoryList repositories={byRepo} />
+          </div>
+        </div>
       )}
 
-      {/* Activity Chart */}
-      <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Activity Timeline</h3>
-        <ActivityChart data={byDate} />
-      </div>
-
-      {/* Developers Grid */}
-      <div>
-        <h3 className="text-lg font-semibold text-white mb-4">
-          Developer Activity ({developers.length} contributors)
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {developers.map((dev, idx) => (
-            <DeveloperCard
-              key={dev.email || idx}
-              developer={dev}
-              rank={idx + 1}
-              onClick={() => onSelectDeveloper(dev)}
-            />
-          ))}
+      {activeTab === 'daily' && (
+        <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Daily Activity Breakdown
+          </h3>
+          <p className="text-dashboard-muted mb-6">
+            Detailed view of all commits for each day. Click on a day to see hourly activity, contributors, and commit details.
+          </p>
+          <DailyBreakdown dailyData={dailyData} />
         </div>
-      </div>
+      )}
 
-      {/* Repositories */}
-      <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">
-          Repository Activity
-        </h3>
-        <RepositoryList repositories={byRepo} />
-      </div>
+      {activeTab === 'productivity' && (
+        <ProductivityPanel
+          developers={developers}
+          timeframeDays={timeframeDays || 30}
+        />
+      )}
+
+      {activeTab === 'compare' && (
+        <CompareView developers={developers} />
+      )}
+
+      {activeTab === 'weekly' && (
+        <div className="bg-dashboard-card border border-dashboard-border rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Weekly Summary Reports
+          </h3>
+          <p className="text-dashboard-muted mb-6">
+            Week-by-week breakdown of activity with trends and top contributors.
+          </p>
+          <WeeklySummary weeklyData={weeklyData} />
+        </div>
+      )}
     </div>
   );
 }

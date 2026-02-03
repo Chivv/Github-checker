@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GitHubService, groupCommitsByAuthor, groupCommitsByDate, groupCommitsByRepository } from './services/github';
 import { generateDeveloperSummary, generateWorkspaceSummary } from './services/aiAnalysis';
+import { generateDailyBreakdown, generateWeeklySummary } from './services/productivityMetrics';
 import Header from './components/Header';
 import SetupPanel from './components/SetupPanel';
 import Dashboard from './components/Dashboard';
@@ -22,6 +23,18 @@ function App() {
   const [selectedDeveloper, setSelectedDeveloper] = useState(null);
   const [timeframe, setTimeframe] = useState('30d');
   const [useDemo, setUseDemo] = useState(false);
+  const [dailyData, setDailyData] = useState(null);
+  const [weeklyData, setWeeklyData] = useState(null);
+
+  const getTimeframeDays = useCallback((tf) => {
+    switch (tf) {
+      case '7d': return 7;
+      case '30d': return 30;
+      case '90d': return 90;
+      case '365d': return 365;
+      default: return 30;
+    }
+  }, []);
 
   const getDateRange = useCallback((tf) => {
     const now = new Date();
@@ -74,6 +87,13 @@ function App() {
         demoData.repos,
         getTimeframeLabel(timeframe)
       );
+
+      // Generate daily and weekly breakdowns
+      const daily = generateDailyBreakdown(demoData.commits);
+      const weekly = generateWeeklySummary(demoData.commits, developersWithSummaries);
+
+      setDailyData(daily);
+      setWeeklyData(weekly);
 
       setData({
         commits: demoData.commits,
@@ -132,6 +152,13 @@ function App() {
         getTimeframeLabel(timeframe)
       );
 
+      // Generate daily and weekly breakdowns
+      const daily = generateDailyBreakdown(result.commits);
+      const weekly = generateWeeklySummary(result.commits, developersWithSummaries);
+
+      setDailyData(daily);
+      setWeeklyData(weekly);
+
       setData({
         commits: result.commits,
         repos: result.repos,
@@ -165,6 +192,8 @@ function App() {
     localStorage.removeItem('workspace-config');
     setConfig(null);
     setData(null);
+    setDailyData(null);
+    setWeeklyData(null);
     setUseDemo(false);
   };
 
@@ -211,6 +240,9 @@ function App() {
             error={error}
             progress={progress}
             onSelectDeveloper={setSelectedDeveloper}
+            dailyData={dailyData}
+            weeklyData={weeklyData}
+            timeframeDays={getTimeframeDays(timeframe)}
           />
         )}
       </main>
